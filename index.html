@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ポケットToDo</title>
+<meta name="description" content="期限日つきのシンプルなやることリスト">
+<meta name="theme-color" content="#F1F4F2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111715" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+:root{padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px)}
+:root{
+  --ground:#F1F4F2; --surface:#FFFFFF; --ink:#1B2724; --muted:#66756F;
+  --line:#DAE2DE; --accent:#1F7A5C; --accent-ink:#FFFFFF; --accent-soft:#DDEFE7;
+  --danger:#B4452F; --danger-soft:#F7E3DD; --shadow:0 -6px 24px rgba(20,40,32,.08);
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#111715; --surface:#19221F; --ink:#E4ECE8; --muted:#8FA099;
+    --line:#2A3632; --accent:#4DBF96; --accent-ink:#0D1A15; --accent-soft:#1D3A30;
+    --danger:#E8826B; --danger-soft:#3A221C; --shadow:0 -6px 24px rgba(0,0,0,.4); color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#111715; --surface:#19221F; --ink:#E4ECE8; --muted:#8FA099;
+  --line:#2A3632; --accent:#4DBF96; --accent-ink:#0D1A15; --accent-soft:#1D3A30;
+  --danger:#E8826B; --danger-soft:#3A221C; --shadow:0 -6px 24px rgba(0,0,0,.4); color-scheme:dark;
+}
+html,body{height:100%}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
+  font-size:16px; line-height:1.6; -webkit-tap-highlight-color:transparent;
+}
+[hidden]{display:none!important}
+.wrap{max-width:560px; margin:0 auto; padding-inline:16px; padding-block:20px 170px}
+header{display:flex; align-items:flex-end; justify-content:space-between; gap:12px}
+h1{margin:0; font-size:26px; font-weight:700; letter-spacing:.02em}
+.stats{text-align:right; font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:13px; color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap}
+.stats b{color:var(--accent); font-size:20px; font-weight:500}
+.stats .over{color:var(--danger)}
+.sync{font-size:12px; color:var(--muted); margin-top:2px}
+.sync::before{content:""; display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--muted); margin-right:6px; vertical-align:1px}
+.sync.on::before{background:var(--accent)}
+
+.filters{display:flex; gap:8px; margin-top:18px; flex-wrap:wrap}
+.chip{font:inherit; font-size:14px; padding:6px 14px; border-radius:999px; border:1px solid var(--line); background:transparent; color:var(--muted); cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--ink); color:var(--ground); border-color:var(--ink)}
+button:focus-visible,.due:focus-within,.datebtn:focus-within{outline:2px solid var(--accent); outline-offset:2px}
+
+ul{list-style:none; margin:14px 0 0; padding:0; background:var(--surface); border-radius:14px; border:1px solid var(--line); overflow:hidden}
+li{display:flex; align-items:flex-start; gap:12px; padding:14px 8px 12px 14px; border-top:1px solid var(--line)}
+li:first-child{border-top:0}
+.check{flex:none; width:26px; height:26px; margin-top:1px; border-radius:50%; border:2px solid var(--muted); background:transparent; cursor:pointer; display:grid; place-items:center; padding:0}
+.check svg{width:14px; height:14px; opacity:0}
+.check path{stroke:var(--accent-ink)}
+li.done .check{background:var(--accent); border-color:var(--accent)}
+li.done .check svg{opacity:1}
+.body{flex:1; min-width:0}
+.text{display:block; overflow-wrap:anywhere; padding-top:1px}
+li.done .text{color:var(--muted); text-decoration:line-through}
+
+/* due label: a transparent native date input sits on top so a tap opens the picker */
+.due{position:relative; display:inline-flex; align-items:center; gap:5px; margin-top:4px; font-size:12.5px; line-height:1; padding:5px 9px; border-radius:7px; color:var(--muted); background:transparent; border:1px dashed var(--line); font-variant-numeric:tabular-nums}
+.due svg{width:13px; height:13px; flex:none}
+.due.has{border-style:solid; border-color:var(--line)}
+.due.today{background:var(--accent-soft); border-color:transparent; color:var(--accent); font-weight:700}
+.due.over{background:var(--danger-soft); border-color:transparent; color:var(--danger); font-weight:700}
+li.done .due{background:transparent; color:var(--muted); font-weight:400; border-color:var(--line)}
+.due input,.datebtn input{position:absolute; inset:0; width:100%; height:100%; opacity:0; border:0; padding:0; margin:0; cursor:pointer; font-size:16px}
+.due input::-webkit-calendar-picker-indicator,.datebtn input::-webkit-calendar-picker-indicator{position:absolute; inset:0; width:100%; height:100%; cursor:pointer}
+
+.del{flex:none; width:36px; height:36px; margin:-5px 0; border:0; background:transparent; color:var(--muted); border-radius:10px; cursor:pointer; font-size:20px; line-height:1}
+.del:active{background:var(--danger-soft); color:var(--danger)}
+li.empty{display:block; padding:36px 16px; text-align:center; color:var(--muted); font-size:14px}
+
+.footer-row{display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:10px; flex-wrap:wrap}
+.linkbtn{font:inherit; font-size:13px; border:0; background:none; color:var(--muted); padding:6px 4px; cursor:pointer; text-decoration:underline; text-underline-offset:3px}
+.linkbtn:disabled{opacity:.4; cursor:default; text-decoration:none}
+
+.bar{position:fixed; left:0; right:0; bottom:0; background:var(--surface); border-top:1px solid var(--line); box-shadow:var(--shadow); padding:10px 16px calc(12px + env(safe-area-inset-bottom, 0px))}
+.bar form{max-width:560px; margin:0 auto; display:flex; flex-direction:column; gap:8px}
+.pending{display:flex; align-items:center; gap:6px; font-size:13px; color:var(--accent)}
+.pending button{border:0; background:var(--accent-soft); color:var(--accent); border-radius:6px; width:22px; height:22px; cursor:pointer; line-height:1; font-size:14px; padding:0}
+.row{display:flex; gap:8px}
+.row input[type=text]{flex:1; min-width:0; font:inherit; font-size:16px; color:var(--ink); background:var(--ground); border:1px solid var(--line); border-radius:12px; padding:12px 14px}
+.row input[type=text]:focus{outline:2px solid var(--accent); outline-offset:-1px}
+.datebtn{position:relative; flex:none; width:48px; border-radius:12px; border:1px solid var(--line); background:var(--ground); color:var(--muted); display:grid; place-items:center}
+.datebtn.set{color:var(--accent); border-color:var(--accent); background:var(--accent-soft)}
+.datebtn svg{width:20px; height:20px}
+.add{flex:none; font:inherit; font-weight:700; font-size:15px; border:0; border-radius:12px; padding:0 18px; background:var(--accent); color:var(--accent-ink); cursor:pointer}
+.toast{position:fixed; left:50%; bottom:calc(120px + env(safe-area-inset-bottom, 0px)); transform:translateX(-50%); background:var(--ink); color:var(--ground); font-size:13px; padding:8px 14px; border-radius:10px; max-width:calc(100% - 32px); z-index:5}
+@media (prefers-reduced-motion: no-preference){
+  li{animation:in .2s ease-out}
+  @keyframes in{from{background:var(--accent-soft)}to{background:transparent}}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>やること</h1>
+      <div class="sync" id="sync">この端末に保存</div>
+    </div>
+    <div class="stats">
+      <div>残り <b id="left">0</b> 件</div>
+      <div class="over" id="overdue" hidden></div>
+    </div>
+  </header>
+
+  <div class="filters" role="group" aria-label="表示の切り替え">
+    <button class="chip" id="f-all" data-f="all" aria-pressed="true">すべて</button>
+    <button class="chip" id="f-active" data-f="active" aria-pressed="false">未完了</button>
+    <button class="chip" id="f-soon" data-f="soon" aria-pressed="false">期限あり</button>
+    <button class="chip" id="f-done" data-f="done" aria-pressed="false">完了</button>
+  </div>
+
+  <ul id="list" aria-live="polite"></ul>
+  <div class="footer-row">
+    <button class="linkbtn" id="install" hidden>ホーム画面に追加</button>
+    <span></span>
+    <button class="linkbtn" id="clear">完了したものを削除</button>
+  </div>
+</div>
+
+<div class="bar">
+  <form id="form" autocomplete="off">
+    <div class="pending" id="pending" hidden><span id="pendingText"></span><button type="button" id="pendingClear" aria-label="期限を外す">×</button></div>
+    <div class="row">
+      <input id="newtask" type="text" placeholder="やることを入力" maxlength="200" aria-label="新しいやること" enterkeyhint="done">
+      <label class="datebtn" id="datebtn" title="期限日">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="4.5" width="14" height="12.5" rx="2"/><path d="M3 8.5h14M7 2.5v4M13 2.5v4"/></svg>
+        <input id="newdue" type="date" aria-label="期限日">
+      </label>
+      <button class="add" type="submit">追加</button>
+    </div>
+  </form>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function(){
+  const MODE = "pwa";          // "artifact" or "pwa"
+  const LS_KEY = "pocket-todo-v1";
+  let todos = [];                   // {id, text, done, due:"YYYY-MM-DD"|"" , createdAt}
+  let filter = "all";
+  let col = null;
+
+  const $ = (id) => document.getElementById(id);
+  const listEl = $("list");
+  const WD = ["日","月","火","水","木","金","土"];
+  const calSvg = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="4.5" width="14" height="12.5" rx="2"/><path d="M3 8.5h14M7 2.5v4M13 2.5v4"/></svg>';
+  const checkSvg = '<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2.5 7.5l3 3 6-7" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+  function toast(msg){
+    const t = $("toast"); t.textContent = msg; t.hidden = false;
+    clearTimeout(toast._t); toast._t = setTimeout(() => t.hidden = true, 2600);
+  }
+  function ymd(d){ return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0"); }
+  function todayStr(){ return ymd(new Date()); }
+  function dayDiff(due){
+    const [y,m,d] = due.split("-").map(Number);
+    const a = new Date(y, m-1, d), n = new Date(); n.setHours(0,0,0,0);
+    return Math.round((a - n) / 86400000);
+  }
+  function dueLabel(due){
+    const [y,m,d] = due.split("-").map(Number);
+    const w = WD[new Date(y, m-1, d).getDay()];
+    const diff = dayDiff(due);
+    const base = (y !== new Date().getFullYear() ? y + "/" : "") + m + "/" + d + "(" + w + ")";
+    if (diff === 0) return "今日 " + base;
+    if (diff === 1) return "明日 " + base;
+    if (diff < 0) return base + " · " + (-diff) + "日超過";
+    if (diff <= 7) return base + " · あと" + diff + "日";
+    return base;
+  }
+  function validDue(v){ return typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : ""; }
+
+  function loadLocal(){
+    try{ const v = JSON.parse(localStorage.getItem(LS_KEY) || "[]"); if (Array.isArray(v)) todos = v.map(norm); }catch(e){}
+  }
+  function saveLocal(){
+    if (col) return;
+    try{ localStorage.setItem(LS_KEY, JSON.stringify(todos)); }catch(e){ toast("この端末に保存できませんでした"); }
+  }
+  function norm(x){ return { id: String(x.id), text: String(x.text || ""), done: !!x.done, due: validDue(x.due), createdAt: Number(x.createdAt) || 0 }; }
+  function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+
+  function sortKey(a, b){
+    if (a.done !== b.done) return a.done - b.done;
+    if (a.due && b.due && a.due !== b.due) return a.due < b.due ? -1 : 1;
+    if (!!a.due !== !!b.due) return a.due ? -1 : 1;
+    return b.createdAt - a.createdAt;
+  }
+
+  function render(){
+    const today = todayStr();
+    const shown = todos.slice().sort(sortKey).filter(t =>
+      filter === "all" ? true :
+      filter === "done" ? t.done :
+      filter === "soon" ? (!t.done && t.due) : !t.done);
+    const open = todos.filter(t => !t.done);
+    $("left").textContent = open.length;
+    const over = open.filter(t => t.due && t.due < today).length;
+    const od = $("overdue"); od.hidden = !over; od.textContent = "期限切れ " + over + " 件";
+    $("clear").disabled = !todos.some(t => t.done);
+    listEl.textContent = "";
+    if (!shown.length){
+      const li = document.createElement("li");
+      li.className = "empty";
+      li.textContent = { done:"完了したものはまだありません", active:"未完了のものはありません", soon:"期限つきのものはありません" }[filter] || "下の入力欄からやることを追加してください";
+      listEl.appendChild(li);
+      return;
+    }
+    for (const t of shown){
+      const li = document.createElement("li");
+      if (t.done) li.className = "done";
+
+      const c = document.createElement("button");
+      c.className = "check"; c.innerHTML = checkSvg;
+      c.setAttribute("aria-label", t.done ? "未完了に戻す" : "完了にする");
+      c.onclick = () => patch(t, { done: !t.done });
+
+      const body = document.createElement("div"); body.className = "body";
+      const s = document.createElement("span"); s.className = "text"; s.textContent = t.text;
+
+      const due = document.createElement("label");
+      due.className = "due";
+      const lab = document.createElement("span");
+      if (t.due){
+        due.classList.add("has");
+        const diff = dayDiff(t.due);
+        if (diff < 0) due.classList.add("over"); else if (diff === 0) due.classList.add("today");
+        lab.textContent = dueLabel(t.due);
+      } else {
+        lab.textContent = "期限なし";
+      }
+      const di = document.createElement("input");
+      di.type = "date"; di.value = t.due; di.setAttribute("aria-label", "期限日を変更");
+      di.onchange = () => patch(t, { due: validDue(di.value) });
+      due.insertAdjacentHTML("beforeend", calSvg);
+      due.append(lab, di);
+      body.append(s, due);
+
+      const d = document.createElement("button");
+      d.className = "del"; d.textContent = "×"; d.setAttribute("aria-label", "削除");
+      d.onclick = () => remove(t);
+
+      li.append(c, body, d);
+      listEl.appendChild(li);
+    }
+  }
+
+  async function add(text, due){
+    const t = { id: uid(), text, done: false, due, createdAt: Date.now() };
+    if (col){
+      try{ await col.doc(t.id).set({ text, done: false, due, createdAt: t.createdAt }); }
+      catch(e){ toast(e && e.code === "quota_exceeded" ? "保存できる件数の上限です。完了したものを削除してください" : "追加できませんでした。もう一度お試しください"); }
+    } else { todos.push(t); saveLocal(); render(); }
+  }
+  async function patch(t, fields){
+    if (col){
+      try{ await col.doc(t.id).update(fields); } catch(e){ toast("更新できませんでした"); }
+    } else { Object.assign(t, fields); saveLocal(); render(); }
+  }
+  async function remove(t){
+    if (col){
+      try{ await col.doc(t.id).delete(); } catch(e){ toast("削除できませんでした"); }
+    } else { todos = todos.filter(x => x !== t); saveLocal(); render(); }
+  }
+  async function clearDone(){
+    const done = todos.filter(t => t.done);
+    if (col){ for (const t of done){ try{ await col.doc(t.id).delete(); }catch(e){} } }
+    else { todos = todos.filter(t => !t.done); saveLocal(); render(); }
+    toast(done.length + " 件を削除しました");
+  }
+
+  // composer
+  const newdue = $("newdue");
+  function syncPending(){
+    const v = validDue(newdue.value);
+    $("pending").hidden = !v;
+    $("datebtn").classList.toggle("set", !!v);
+    if (v) $("pendingText").textContent = "期限：" + dueLabel(v);
+  }
+  newdue.addEventListener("change", syncPending);
+  newdue.addEventListener("input", syncPending);
+  $("pendingClear").onclick = () => { newdue.value = ""; syncPending(); };
+  $("form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const inp = $("newtask"); const v = inp.value.trim();
+    if (!v){ inp.focus(); return; }
+    add(v, validDue(newdue.value));
+    inp.value = ""; newdue.value = ""; syncPending(); inp.focus();
+  });
+  $("clear").onclick = clearDone;
+  document.querySelectorAll(".chip").forEach(b => b.onclick = () => {
+    filter = b.dataset.f;
+    document.querySelectorAll(".chip").forEach(x => x.setAttribute("aria-pressed", x === b ? "true" : "false"));
+    render();
+  });
+  // refresh "today/overdue" labels when the app comes back after midnight
+  let lastDay = todayStr();
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && todayStr() !== lastDay){ lastDay = todayStr(); render(); } });
+
+  loadLocal(); render();
+
+  if (MODE === "artifact" && window.claude && window.claude.use){
+    window.claude.use("db").then((db) => {
+      if (!db) return;
+      col = db.collection("todos");
+      col.onSnapshot((snap) => {
+        todos = snap.docs.map(d => norm(Object.assign({ id: d.id }, d.data() || {})));
+        const s = $("sync"); s.textContent = "PC・スマホで同期中"; s.classList.add("on");
+        render();
+      }, () => {
+        col = null; loadLocal(); render();
+        const s = $("sync"); s.textContent = "この端末に保存"; s.classList.remove("on");
+      });
+    }).catch(() => {});
+  }
+
+  if (MODE === "pwa"){
+    $("sync").textContent = "この端末に保存（オフライン対応）";
+    if ("serviceWorker" in navigator){
+      window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => {}));
+    }
+    if (navigator.storage && navigator.storage.persist){ navigator.storage.persist().catch(() => {}); }
+    let deferred = null;
+    window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); deferred = e; $("install").hidden = false; });
+    $("install").onclick = async () => {
+      if (!deferred) return;
+      deferred.prompt();
+      try{ await deferred.userChoice; }catch(e){}
+      deferred = null; $("install").hidden = true;
+    };
+    window.addEventListener("appinstalled", () => { $("install").hidden = true; toast("ホーム画面に追加しました"); });
+    window.addEventListener("storage", (e) => { if (e.key === LS_KEY){ loadLocal(); render(); } });
+  }
+})();
+</script>
+</body>
+</html>
